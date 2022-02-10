@@ -19,9 +19,9 @@ SDL_Arduino_INA3221 ina3221;
 #define SOLAR 3
 
 #define uS_TO_S_FACTOR 1000000 /* Conversion factor for micro seconds to seconds */
-#define TIME_TO_SLEEP 10 * 60  /* Time ESP32 will go to sleep (in seconds) */
+#define TIME_TO_SLEEP 1 * 60  /* Time ESP32 will go to sleep (in seconds) */
 
-#define TIME_TO_SLEEP 10 * 60  /* testing purpose */
+//#define TIME_TO_SLEEP 1 * 10  /* testing purpose */
 
 RTC_DATA_ATTR int bootCount = 0;
 
@@ -30,7 +30,7 @@ const int GPIOPIN = 27; // for NPN (to switch on the base)
 const int delay_Switch_ON = 0; //milli fois sec
 
 const float Minimal_Voltage_To_Switch_On_Raspi = 14.5;    // volt
-const float Minimal_Voltage_To_Switch_Off_Raspi = 12.8; //volt
+const float Minimal_Voltage_To_Switch_Off_Raspi = 13.5; //volt
 
 void setup(void)
 {
@@ -39,6 +39,7 @@ void setup(void)
   Serial.begin(9600);
   ina3221.begin();
 
+  pinMode(23, OUTPUT);      //Use as VCC for ina3221
   pinMode(26, OUTPUT);      //Use as VCC for PIR
   pinMode(25, OUTPUT);      //PIR mode
   pinMode(34, INPUT);       // PIR reading
@@ -46,6 +47,8 @@ void setup(void)
   digitalWrite(26, 1);      //Use as VCC for PIR
   pinMode(GPIOPIN, OUTPUT); // for NPN
   digitalWrite(GPIOPIN, LOW);
+  digitalWrite(23, HIGH);// switch on Ina3221
+  //delay(2000); 
 
   float shuntvoltage1 = 0;
   float busvoltage1 = 0;
@@ -60,10 +63,13 @@ void setup(void)
   busvoltage3 = ina3221.getBusVoltage_V(SOLAR);
   current_mA3 = ina3221.getCurrent_mA(SOLAR);
 
-  if (busvoltage3 > Minimal_Voltage_To_Switch_On_Raspi) // && (current_mA3 < 0)) // last condition to check daylight
+  Serial.println(busvoltage3);
+
+  if ((busvoltage3 > Minimal_Voltage_To_Switch_On_Raspi)  && (current_mA3 < 0)) // last condition to check daylight
   {
+    
     digitalWrite(GPIOPIN, HIGH);
-    while (busvoltage3 > Minimal_Voltage_To_Switch_Off_Raspi) //&& (current_mA3 < 0))
+    while ((busvoltage3 > Minimal_Voltage_To_Switch_Off_Raspi) && (current_mA3 < 0))
     {
       Serial.flush();
       //pinMode(GPIOPIN, OUTPUT);
@@ -99,6 +105,7 @@ void setup(void)
   else
   {
     digitalWrite(GPIOPIN, LOW);
+    digitalWrite(23, LOW);// switch off Ina3221
   }
 
   bootCount++;
