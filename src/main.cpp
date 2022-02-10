@@ -35,19 +35,24 @@ const float Minimal_Voltage_To_Switch_Off_Raspi = 13.5; //volt
 void setup(void)
 {
 
+
+  pinMode(23, OUTPUT);      //Use as VCC for ina3221
+  digitalWrite(23, HIGH);// switch on Ina3221
+  delay(2000);
+
   Wire.begin(I2C_SDA, I2C_SCL);
   Serial.begin(9600);
   ina3221.begin();
 
-  pinMode(23, OUTPUT);      //Use as VCC for ina3221
-  pinMode(26, OUTPUT);      //Use as VCC for PIR
+  
+  pinMode(26, OUTPUT);      //Use as VCC for PIR (not use anymore)
   pinMode(25, OUTPUT);      //PIR mode
   pinMode(34, INPUT);       // PIR reading
-  digitalWrite(25, 0);      // mode PIR =1 (0 may be interesting as well)
+  digitalWrite(25, 1);      // mode PIR =1 (0 may be interesting as well)
   digitalWrite(26, 1);      //Use as VCC for PIR
   pinMode(GPIOPIN, OUTPUT); // for NPN
   digitalWrite(GPIOPIN, LOW);
-  digitalWrite(23, HIGH);// switch on Ina3221
+  
   //delay(2000); 
 
   float shuntvoltage1 = 0;
@@ -60,16 +65,17 @@ void setup(void)
   float current_mA3 = 0;
   float loadvoltage3 = 0;
 
+  //delay(100); 
   busvoltage3 = ina3221.getBusVoltage_V(SOLAR);
   current_mA3 = ina3221.getCurrent_mA(SOLAR);
 
   Serial.println(busvoltage3);
-
-  if ((busvoltage3 > Minimal_Voltage_To_Switch_On_Raspi)  && (current_mA3 < 0)) // last condition to check daylight
+  Serial.println(current_mA3);
+  if ((busvoltage3 > Minimal_Voltage_To_Switch_On_Raspi)  && (current_mA3 < 2.40)) // last condition to check daylight
   {
     
     digitalWrite(GPIOPIN, HIGH);
-    while ((busvoltage3 > Minimal_Voltage_To_Switch_Off_Raspi) && (current_mA3 < 0))
+    while ((busvoltage3 > Minimal_Voltage_To_Switch_Off_Raspi) && (current_mA3 < 2.40))
     {
       Serial.flush();
       //pinMode(GPIOPIN, OUTPUT);
