@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"name": "Pi_Mangeoire",
+			"path": ".."
+		}
+	],
+	"settings": {
+		"platformio-ide.activateOnlyOnPlatformIOProject": true
+	}
+}
