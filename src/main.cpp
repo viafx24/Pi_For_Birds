@@ -38,7 +38,7 @@ void setup(void)
 
   pinMode(23, OUTPUT);      //Use as VCC for ina3221
   digitalWrite(23, HIGH);// switch on Ina3221
-  delay(2000);
+  delay(10);// needed to get correct first value of INA3221
 
   Wire.begin(I2C_SDA, I2C_SCL);
   Serial.begin(9600);
