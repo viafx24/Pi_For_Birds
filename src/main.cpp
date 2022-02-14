@@ -65,17 +65,17 @@ void setup(void)
   float current_mA3 = 0;
   float loadvoltage3 = 0;
 
-  //delay(100); 
+  delay(10); 
   busvoltage3 = ina3221.getBusVoltage_V(SOLAR);
   current_mA3 = ina3221.getCurrent_mA(SOLAR);
 
   Serial.println(busvoltage3);
   Serial.println(current_mA3);
-  if ((busvoltage3 > Minimal_Voltage_To_Switch_On_Raspi)  && (current_mA3 < 2.40)) // last condition to check daylight
+  if ((busvoltage3 > Minimal_Voltage_To_Switch_On_Raspi)  && (current_mA3 < 2.39)) // last condition to check daylight
   {
     
     digitalWrite(GPIOPIN, HIGH);
-    while ((busvoltage3 > Minimal_Voltage_To_Switch_Off_Raspi) && (current_mA3 < 2.40))
+    while ((busvoltage3 > Minimal_Voltage_To_Switch_Off_Raspi) && (current_mA3 < 2.39))
     {
       Serial.flush();
       //pinMode(GPIOPIN, OUTPUT);
