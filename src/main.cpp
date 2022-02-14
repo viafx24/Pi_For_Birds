@@ -19,32 +19,51 @@ SDL_Arduino_INA3221 ina3221;
 #define SOLAR 3
 
 #define uS_TO_S_FACTOR 1000000 /* Conversion factor for micro seconds to seconds */
-#define TIME_TO_SLEEP 1 * 60  /* Time ESP32 will go to sleep (in seconds) */
+#define TIME_TO_SLEEP 1 * 10   /* Time ESP32 will go to sleep (in seconds) */
 
 //#define TIME_TO_SLEEP 1 * 10  /* testing purpose */
 
 RTC_DATA_ATTR int bootCount = 0;
 
 const int GPIOPIN = 27; // for NPN (to switch on the base)
+const int LDRVCC = 18;  // for vcc 3.3V for LDR/light sensing
+const int ACCVCC = 19;  // for vcc 3.3V for accelerometer
+
+const int LDR_ANALOG = 15; // analog reading of ambiant light
+const int LDR_TRESHOLD = 2000;
+const int ACC_X = 2;
+const int ACC_Y = 0;
+const int ACC_Z = 4;
+
 //const int delay_Switch_ON=1000*20; //sec
 const int delay_Switch_ON = 0; //milli fois sec
 
-const float Minimal_Voltage_To_Switch_On_Raspi = 14.5;    // volt
+const float Minimal_Voltage_To_Switch_On_Raspi = 14.5;  // volt
 const float Minimal_Voltage_To_Switch_Off_Raspi = 13.5; //volt
 
 void setup(void)
 {
 
+  pinMode(23, OUTPUT);    //Use as VCC for ina3221
+  digitalWrite(23, HIGH); // switch on Ina3221
 
-  pinMode(23, OUTPUT);      //Use as VCC for ina3221
-  digitalWrite(23, HIGH);// switch on Ina3221
-  delay(10);// needed to get correct first value of INA3221
+  pinMode(LDRVCC, OUTPUT);    //Use as VCC for LDR
+  digitalWrite(LDRVCC, HIGH); //
+
+  pinMode(ACCVCC, OUTPUT); //Use as VCC for acc
+  digitalWrite(ACCVCC, HIGH);
+
+  pinMode(LDR_ANALOG, INPUT);
+  pinMode(ACC_X, INPUT);
+  pinMode(ACC_Y, INPUT);
+  pinMode(ACC_Z, INPUT);
+
+  delay(10); // needed to get correct first value of INA3221
 
   Wire.begin(I2C_SDA, I2C_SCL);
   Serial.begin(9600);
   ina3221.begin();
 
-  
   pinMode(26, OUTPUT);      //Use as VCC for PIR (not use anymore)
   pinMode(25, OUTPUT);      //PIR mode
   pinMode(34, INPUT);       // PIR reading
@@ -52,8 +71,8 @@ void setup(void)
   digitalWrite(26, 1);      //Use as VCC for PIR
   pinMode(GPIOPIN, OUTPUT); // for NPN
   digitalWrite(GPIOPIN, LOW);
-  
-  //delay(2000); 
+
+  //delay(2000);
 
   float shuntvoltage1 = 0;
   float busvoltage1 = 0;
@@ -65,17 +84,30 @@ void setup(void)
   float current_mA3 = 0;
   float loadvoltage3 = 0;
 
-  delay(10); 
+  int LDR = 0;
+  int X = 0;
+  int Y = 0;
+  int Z = 0;
+
+  bool PIR;
+  int Count_Trigger_PIR = 0;
+
+  delay(10);
   busvoltage3 = ina3221.getBusVoltage_V(SOLAR);
   current_mA3 = ina3221.getCurrent_mA(SOLAR);
+  LDR = analogRead(LDR_ANALOG);
 
   Serial.println(busvoltage3);
   Serial.println(current_mA3);
-  if ((busvoltage3 > Minimal_Voltage_To_Switch_On_Raspi)  && (current_mA3 < 2.39)) // last condition to check daylight
+  Serial.println(LDR);
+
+  if ((busvoltage3 > Minimal_Voltage_To_Switch_On_Raspi) && (LDR < LDR_TRESHOLD)) // last condition to check daylight
   {
-    
+
     digitalWrite(GPIOPIN, HIGH);
-    while ((busvoltage3 > Minimal_Voltage_To_Switch_Off_Raspi) && (current_mA3 < 2.39))
+
+    
+    while ((busvoltage3 > Minimal_Voltage_To_Switch_Off_Raspi) && (LDR < LDR_TRESHOLD))
     {
       Serial.flush();
       //pinMode(GPIOPIN, OUTPUT);
@@ -91,6 +123,22 @@ void setup(void)
       current_mA3 = ina3221.getCurrent_mA(SOLAR);
       loadvoltage3 = busvoltage3 + (shuntvoltage3 / 1000);
 
+      X = analogRead(ACC_X); //read from xpin
+      delay(1);                  //
+      Y = analogRead(ACC_Y); //read from ypin
+      delay(1);
+      Z = analogRead(ACC_Z); //read from zpin
+
+      LDR = analogRead(LDR_ANALOG);
+
+      PIR=digitalRead(34);
+
+      if (PIR==1)
+      {
+        Count_Trigger_PIR++;
+      }
+
+
       Serial.print(bootCount);
       Serial.print(",");
       Serial.print(loadvoltage1);
@@ -101,17 +149,28 @@ void setup(void)
       Serial.print(",");
       Serial.print(current_mA3);
       Serial.print(",");
-
-      Serial.println(digitalRead(34));
-
-      delay(250);
+      Serial.print(LDR);
+      Serial.print(",");
+      Serial.print(X);
+      Serial.print(",");
+      Serial.print(Y);
+      Serial.print(",");
+      Serial.print(Z);
+      Serial.print(",");
+      Serial.print(PIR);
+      Serial.print(",");
+      Serial.println(Count_Trigger_PIR);
+      delay(25);
     }
   }
 
   else
   {
     digitalWrite(GPIOPIN, LOW);
-    digitalWrite(23, LOW);// switch off Ina3221
+    digitalWrite(23, LOW); // switch off Ina3221
+
+    digitalWrite(LDRVCC, LOW); //
+    digitalWrite(ACCVCC, LOW);
   }
 
   bootCount++;
