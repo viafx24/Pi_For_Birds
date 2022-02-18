@@ -7,6 +7,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <SDL_Arduino_INA3221.h>
+#include <Statistic.h>
 
 #define I2C_SDA 33
 #define I2C_SCL 32
@@ -19,11 +20,12 @@ SDL_Arduino_INA3221 ina3221;
 #define SOLAR 3
 
 #define uS_TO_S_FACTOR 1000000 /* Conversion factor for micro seconds to seconds */
-#define TIME_TO_SLEEP 1 * 10   /* Time ESP32 will go to sleep (in seconds) */
+#define TIME_TO_SLEEP 1 * 60   /* Time ESP32 will go to sleep (in seconds) */
 
 //#define TIME_TO_SLEEP 1 * 10  /* testing purpose */
 
 RTC_DATA_ATTR int bootCount = 0;
+RTC_DATA_ATTR int Reason_Switch_Off = 0;
 
 const int GPIOPIN = 27; // for NPN (to switch on the base)
 const int LDRVCC = 18;  // for vcc 3.3V for LDR/light sensing
@@ -40,6 +42,8 @@ const int delay_Switch_ON = 0; //milli fois sec
 
 const float Minimal_Voltage_To_Switch_On_Raspi = 14.5;  // volt
 const float Minimal_Voltage_To_Switch_Off_Raspi = 13.5; //volt
+
+Statistic LDR_Array;
 
 void setup(void)
 {
@@ -85,6 +89,9 @@ void setup(void)
   float loadvoltage3 = 0;
 
   int LDR = 0;
+  float LDR_Average = 0; //At beginning, fix to zero to allow the loop
+  LDR_Array.clear();
+
   int X = 0;
   int Y = 0;
   int Z = 0;
@@ -106,8 +113,8 @@ void setup(void)
 
     digitalWrite(GPIOPIN, HIGH);
 
-    
-    while ((busvoltage3 > Minimal_Voltage_To_Switch_Off_Raspi) && (LDR < LDR_TRESHOLD))
+    // use LDR_Average rather than LDR in the loop to avoid accident of light transitory switch off
+    while ((busvoltage3 > Minimal_Voltage_To_Switch_Off_Raspi) && (LDR_Average < LDR_TRESHOLD))
     {
       Serial.flush();
       //pinMode(GPIOPIN, OUTPUT);
@@ -131,6 +138,20 @@ void setup(void)
 
       LDR = analogRead(LDR_ANALOG);
 
+      // take a average all 4000 measures thus for 25ms = 100 seconds. first average is fixed at zero.
+      while (LDR_Array.count() <= 4000)
+      {
+        LDR_Array.add(LDR);
+      }
+
+      if (LDR_Array.count()==4000)
+      {
+        LDR_Average=LDR_Array.average();
+        LDR_Array.clear(1);
+      }
+        
+
+
       PIR=digitalRead(34);
 
       if (PIR==1)
@@ -140,6 +161,8 @@ void setup(void)
 
 
       Serial.print(bootCount);
+      Serial.print(",");
+      Serial.print(Reason_Switch_Off);
       Serial.print(",");
       Serial.print(loadvoltage1);
       Serial.print(",");
@@ -151,6 +174,8 @@ void setup(void)
       Serial.print(",");
       Serial.print(LDR);
       Serial.print(",");
+      Serial.print(LDR_Average);
+      Serial.print(",");
       Serial.print(X);
       Serial.print(",");
       Serial.print(Y);
@@ -160,6 +185,19 @@ void setup(void)
       Serial.print(PIR);
       Serial.print(",");
       Serial.println(Count_Trigger_PIR);
+
+// the goal is to know why the esp32 switch off at the previous run. 1 is voltage, 2: LDR_Average
+// if Reason_Switch_Off=0 after reboot>0, there is a problem.
+      if (busvoltage3 <= Minimal_Voltage_To_Switch_Off_Raspi)
+        {
+          Reason_Switch_Off = 1;
+        }
+
+      if (LDR_Average >= LDR_TRESHOLD)
+        {
+          Reason_Switch_Off = 2;
+        }
+
       delay(25);
     }
   }
