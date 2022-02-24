@@ -139,15 +139,14 @@ void setup(void)
       LDR = analogRead(LDR_ANALOG);
 
       // take a average all 4000 measures thus for 25ms = 100 seconds. first average is fixed at zero.
-      while (LDR_Array.count() <= 4000)
+      if (LDR_Array.count() <= 4000)
       {
         LDR_Array.add(LDR);
       }
-
-      if (LDR_Array.count()==4000)
+      else
       {
         LDR_Average=LDR_Array.average();
-        LDR_Array.clear(1);
+        LDR_Array.clear();
       }
         
 
