@@ -138,8 +138,8 @@ void setup(void)
 
       LDR = analogRead(LDR_ANALOG);
 
-      // take a average all 4000 measures thus for 25ms = 100 seconds. first average is fixed at zero.
-      if (LDR_Array.count() <= 4000)
+      // take a average all 2000 measures thus for 25ms = 50 seconds. first average is fixed at zero.
+      if (LDR_Array.count() <= 2000)
       {
         LDR_Array.add(LDR);
       }
@@ -197,7 +197,7 @@ void setup(void)
           Reason_Switch_Off = 2;
         }
 
-      delay(25);
+      delay(250);
     }
   }
 
