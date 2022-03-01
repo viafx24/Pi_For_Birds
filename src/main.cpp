@@ -20,7 +20,7 @@ SDL_Arduino_INA3221 ina3221;
 #define SOLAR 3
 
 #define uS_TO_S_FACTOR 1000000 /* Conversion factor for micro seconds to seconds */
-#define TIME_TO_SLEEP 1 * 60   /* Time ESP32 will go to sleep (in seconds) */
+#define TIME_TO_SLEEP 1 * 30   /* Time ESP32 will go to sleep (in seconds) */
 
 //#define TIME_TO_SLEEP 1 * 10  /* testing purpose */
 
@@ -32,7 +32,7 @@ const int LDRVCC = 18;  // for vcc 3.3V for LDR/light sensing
 const int ACCVCC = 19;  // for vcc 3.3V for accelerometer
 
 const int LDR_ANALOG = 15; // analog reading of ambiant light
-const int LDR_TRESHOLD = 2000;
+const int LDR_TRESHOLD = 3000;
 const int ACC_X = 2;
 const int ACC_Y = 0;
 const int ACC_Z = 4;
@@ -138,8 +138,8 @@ void setup(void)
 
       LDR = analogRead(LDR_ANALOG);
 
-      // take a average all 2000 measures thus for 25ms = 50 seconds. first average is fixed at zero.
-      if (LDR_Array.count() <= 2000)
+      // take a average all 200 measures thus for 250ms = 50 seconds. first average is fixed at zero.
+      if (LDR_Array.count() <= 200)
       {
         LDR_Array.add(LDR);
       }
