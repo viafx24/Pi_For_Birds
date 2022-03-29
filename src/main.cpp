@@ -43,7 +43,9 @@ const int delay_Switch_ON = 0; //milli fois sec
 const float Minimal_Voltage_To_Switch_On_Raspi = 14.5;  // volt
 const float Minimal_Voltage_To_Switch_Off_Raspi = 13.5; //volt
 
+// those two objects are used to remove outlier by use of the mean. (outlier of voltage and human error for LDR)
 Statistic LDR_Array;
+Statistic Voltage_Array;
 
 float shuntvoltage1 = 0;
 float busvoltage1 = 0;
@@ -57,6 +59,7 @@ float loadvoltage3 = 0;
 
 int LDR = 0;
 float LDR_Average = 0; //At beginning, fix to zero to allow the loop
+float Voltage_Average;
 
 int X = 0;
 int Y = 0;
@@ -100,9 +103,11 @@ void setup(void)
 
   //delay(2000);
   LDR_Array.clear();
-
-  //delay(10);
-
+  Voltage_Array.clear();
+delay(10000);
+Serial.println("Delay of 1 minute begin");
+delay(60000); 
+Serial.println("End of delay");
 }
 
 void loop(void)
@@ -128,8 +133,9 @@ void loop(void)
 
     digitalWrite(GPIOPIN, HIGH);
     LDR_Average=LDR;
+    Voltage_Average=busvoltage3;
     // use LDR_Average rather than LDR in the loop to avoid accident of light transitory switch off
-    while ((busvoltage3 > Minimal_Voltage_To_Switch_Off_Raspi) && (LDR_Average < LDR_TRESHOLD))
+    while ((Voltage_Average > Minimal_Voltage_To_Switch_Off_Raspi) && (LDR_Average < LDR_TRESHOLD))
     {
       Serial.flush();
       //pinMode(GPIOPIN, OUTPUT);
@@ -157,11 +163,15 @@ void loop(void)
       if (LDR_Array.count() <= 200)
       {
         LDR_Array.add(LDR);
+        Voltage_Array.add(busvoltage3);
       }
       else
       {
         LDR_Average = LDR_Array.average();
         LDR_Array.clear();
+
+        Voltage_Average=Voltage_Array.average();
+        Voltage_Array.clear();
       }
 
       PIR = digitalRead(34);
@@ -199,7 +209,7 @@ void loop(void)
 
       // the goal is to know why the esp32 switch off at the previous run. 1 is voltage, 2: LDR_Average
       // if Reason_Switch_Off=0 after reboot>0, there is a problem.
-      if (busvoltage3 <= Minimal_Voltage_To_Switch_Off_Raspi)
+      if (Voltage_Average <= Minimal_Voltage_To_Switch_Off_Raspi)
       {
         Reason_Switch_Off = 1;
       }
