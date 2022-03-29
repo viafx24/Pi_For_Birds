@@ -45,29 +45,25 @@ const float Minimal_Voltage_To_Switch_Off_Raspi = 13.5; //volt
 
 Statistic LDR_Array;
 
+float shuntvoltage1 = 0;
+float busvoltage1 = 0;
+float current_mA1 = 0;
+float loadvoltage1 = 0;
 
+float shuntvoltage3 = 0; // to enter while loop
+float busvoltage3 = 0;
+float current_mA3 = 0;
+float loadvoltage3 = 0;
 
-  float shuntvoltage1 = 0;
-  float busvoltage1 = 0;
-  float current_mA1 = 0;
-  float loadvoltage1 = 0;
+int LDR = 0;
+float LDR_Average = 0; //At beginning, fix to zero to allow the loop
 
-  float shuntvoltage3 = 0; // to enter while loop
-  float busvoltage3 = 0;
-  float current_mA3 = 0;
-  float loadvoltage3 = 0;
+int X = 0;
+int Y = 0;
+int Z = 0;
 
-  int LDR = 0;
-  float LDR_Average = 0; //At beginning, fix to zero to allow the loop
-
-
-  int X = 0;
-  int Y = 0;
-  int Z = 0;
-
-  bool PIR;
-  int Count_Trigger_PIR = 0;
-
+bool PIR;
+int Count_Trigger_PIR = 0;
 
 void setup(void)
 {
@@ -105,6 +101,19 @@ void setup(void)
   //delay(2000);
   LDR_Array.clear();
 
+  //delay(10);
+
+}
+
+void loop(void)
+{
+
+  digitalWrite(26, HIGH); // switch on Ina3221
+  digitalWrite(LDRVCC, HIGH); //
+  digitalWrite(ACCVCC, HIGH);
+  digitalWrite(25, 1); // mode PIR =1 (0 may be interesting as well)
+
+
   delay(10);
   busvoltage3 = ina3221.getBusVoltage_V(SOLAR);
   current_mA3 = ina3221.getCurrent_mA(SOLAR);
@@ -113,16 +122,12 @@ void setup(void)
   Serial.println(busvoltage3);
   Serial.println(current_mA3);
   Serial.println(LDR);
-}
-
-void loop(void)
-{
 
   if ((busvoltage3 > Minimal_Voltage_To_Switch_On_Raspi) && (LDR < LDR_TRESHOLD)) // last condition to check daylight
   {
 
     digitalWrite(GPIOPIN, HIGH);
-
+    LDR_Average=LDR;
     // use LDR_Average rather than LDR in the loop to avoid accident of light transitory switch off
     while ((busvoltage3 > Minimal_Voltage_To_Switch_Off_Raspi) && (LDR_Average < LDR_TRESHOLD))
     {
