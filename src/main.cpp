@@ -40,8 +40,13 @@ const int ACC_Z = 4;
 //const int delay_Switch_ON=1000*20; //sec
 const int delay_Switch_ON = 0; //milli fois sec
 
-const float Minimal_Voltage_To_Switch_On_Raspi = 14.5;  // volt
-const float Minimal_Voltage_To_Switch_Off_Raspi = 13.5; //volt
+const float Minimal_Voltage_To_Switch_On_Raspi = 15.5;  // volt
+const float Minimal_Voltage_To_Switch_Off_Raspi = 14.5; //volt
+
+// for testing purpose
+//const float Minimal_Voltage_To_Switch_Off_Raspi = 14.1; //volt
+
+const float Incoherent_Voltage = 17 ; //volt
 
 // those two objects are used to remove outlier by use of the mean. (outlier of voltage and human error for LDR)
 Statistic LDR_Array;
@@ -128,7 +133,7 @@ void loop(void)
   Serial.println(current_mA3);
   Serial.println(LDR);
 
-  if ((busvoltage3 > Minimal_Voltage_To_Switch_On_Raspi) && (LDR < LDR_TRESHOLD)) // last condition to check daylight
+  if ((busvoltage3 > Minimal_Voltage_To_Switch_On_Raspi) && (busvoltage3 < Incoherent_Voltage) && (LDR < LDR_TRESHOLD)) // last condition to check daylight
   {
 
     digitalWrite(GPIOPIN, HIGH);
