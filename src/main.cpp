@@ -32,7 +32,7 @@ const int LDRVCC = 18;  // for vcc 3.3V for LDR/light sensing
 const int ACCVCC = 19;  // for vcc 3.3V for accelerometer
 
 const int LDR_ANALOG = 15; // analog reading of ambiant light
-const int LDR_TRESHOLD = 3000;
+const float LDR_TRESHOLD = 3000;
 const int ACC_X = 2;
 const int ACC_Y = 0;
 const int ACC_Z = 4;
@@ -62,7 +62,7 @@ float busvoltage3 = 0;
 float current_mA3 = 0;
 float loadvoltage3 = 0;
 
-int LDR = 0;
+float LDR = 0;
 float LDR_Average = 0; //At beginning, fix to zero to allow the loop
 float Voltage_Average;
 
@@ -139,6 +139,10 @@ void loop(void)
     digitalWrite(GPIOPIN, HIGH);
     LDR_Average=LDR;
     Voltage_Average=busvoltage3;
+
+    LDR_Array.clear();
+    Voltage_Array.clear();
+
     // use LDR_Average rather than LDR in the loop to avoid accident of light transitory switch off
     while ((Voltage_Average > Minimal_Voltage_To_Switch_Off_Raspi) && (LDR_Average < LDR_TRESHOLD))
     {
@@ -210,18 +214,21 @@ void loop(void)
       Serial.print(",");
       Serial.print(PIR);
       Serial.print(",");
-      Serial.println(Count_Trigger_PIR);
+      //Serial.println(Count_Trigger_PIR);//change to the next line to correct bug and avoid modif of python
+      Serial.println(Voltage_Average);
 
       // the goal is to know why the esp32 switch off at the previous run. 1 is voltage, 2: LDR_Average
       // if Reason_Switch_Off=0 after reboot>0, there is a problem.
       if (Voltage_Average <= Minimal_Voltage_To_Switch_Off_Raspi)
       {
         Reason_Switch_Off = 1;
+        bootCount++;
       }
 
       if (LDR_Average >= LDR_TRESHOLD)
       {
         Reason_Switch_Off = 2;
+        bootCount++;
       }
 
       delay(250);
@@ -236,7 +243,7 @@ void loop(void)
     digitalWrite(LDRVCC, LOW); //
     digitalWrite(ACCVCC, LOW);
 
-    bootCount++;
+    
     Serial.flush();
 
     Serial.println("Setup ESP32 to sleep for every " + String(TIME_TO_SLEEP) +
