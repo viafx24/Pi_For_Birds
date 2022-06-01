@@ -1,218 +1,123 @@
-
-
-
-
-//version sans LDR ni statistic mais ajout epoch
-
 #include <Arduino.h>
-#include <Wire.h>
-#include <SDL_Arduino_INA3221.h>
 #include <ESP32Time.h>
 
-// All constants
+long Epoch_Now = 0;
+long Epoch_Restart = 0;
 
-const int I2C_SDA = 33;
-const int I2C_SCL = 32;
 
-const long uS_TO_S_FACTOR = 1000000; /* Conversion factor for micro seconds to seconds */
-const int TIME_TO_SLEEP = 1 * 5;     /* Time ESP32 will go to sleep (in seconds) */
-
-const int TRANSISTOR = 27; // for NPN (to switch on the base)
-const int INAVCC = 26;
-
-const int RASPI = 1;
-const int SOLAR = 3;
-
-const long Initial_Delay = 30000;
-
-// all variables
-
-float Minimal_Voltage_To_Switch_On_Raspi = 13.5;  // volt
-float Minimal_Voltage_To_Switch_Off_Raspi = 12.5; //volt
-
-float busvoltage = 0;
-float current_mA_solar = 0;
-float current_mA_raspi = 0;
-
-long Epoch_Now = 1600000000;// functions getEpoch too slow if set time below that (bug)
-long Epoch_Restart = 1600000000;
-
-int Reason_Switch_Off = 0;
-int Transistor_State = 0;
-
-int Summer_Time=7200;
-// All objects
-
-SDL_Arduino_INA3221 ina3221;
-
-ESP32Time rtc(Summer_Time);
+ESP32Time rtc(0);
 
 void setup(void)
 {
-
-  rtc.setTime(Epoch_Now);
-
-  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
-
-  pinMode(TRANSISTOR, OUTPUT); // for NPN
-  digitalWrite(TRANSISTOR, LOW);
-
-  pinMode(INAVCC, OUTPUT);    //Use as VCC for ina3221
-  digitalWrite(INAVCC, HIGH); // switch on Ina3221
-
-  delay(10); // needed to get correct first value of INA3221
-
-  Wire.begin(I2C_SDA, I2C_SCL);
+  //rtc.setTime(1653592210);
+  rtc.setTime(10, 53, 23, 25, 5, 2022);
+  esp_sleep_enable_timer_wakeup(10 * 1000000);
   Serial.begin(9600);
-  ina3221.begin();
-
-  // Serial.println((String) "Delay of " + Initial_Delay / 1000 + " seconds");
-  // delay(Initial_Delay);
-  // Serial.println("End of delay");
 }
 
 void loop(void)
 {
-
-  digitalWrite(INAVCC, HIGH); // switch on Ina3221
-  delay(10);
-
-  busvoltage = ina3221.getBusVoltage_V(SOLAR);
-
-  while ((busvoltage < 12.0) || (busvoltage > 17.0))
-  {
-    busvoltage = ina3221.getBusVoltage_V(SOLAR);
-  }
-
-  current_mA_raspi = ina3221.getCurrent_mA(RASPI);
-  current_mA_solar = ina3221.getCurrent_mA(SOLAR);
-
-  Serial.print(Transistor_State);
-  Serial.print(",");
-  Serial.print(Reason_Switch_Off);
-  Serial.print(",");
-  Serial.print(busvoltage);
-  Serial.print(",");
-  Serial.print(current_mA_raspi);
-  Serial.print(",");
-  Serial.print(current_mA_solar);
-  Serial.print(",");
-  Serial.print(rtc.getEpoch());
-  Serial.print(",");
+  Serial.print(rtc.getTime("%A, %B %d %Y %H:%M:%S"));
+  Serial.print(',');
+  Serial.print(rtc.getEpoch()); //  (long)    1609459200
+  Serial.print(',');
+  Serial.print(Epoch_Now);
+  Serial.print(',');
   Serial.println(Epoch_Restart);
   delay(100);
 
-  while ((busvoltage > Minimal_Voltage_To_Switch_On_Raspi) && (rtc.getEpoch() > Epoch_Restart)) // last condition to check daylight
+  if (Serial.available() > 0)
   {
 
-    digitalWrite(TRANSISTOR, HIGH);
-    Transistor_State = 1;
+    Epoch_Now = Serial.readStringUntil(',').toInt(); 
+    Epoch_Restart = Serial.readStringUntil(',').toInt();// reçoit un byte de pyhon et considéré comme String
+    rtc.setTime(Epoch_Now);
 
-    Serial.flush();
-
-    busvoltage = ina3221.getBusVoltage_V(SOLAR);
-
-    while ((busvoltage < 12.0) || (busvoltage > 17.0))
-    {
-      busvoltage = ina3221.getBusVoltage_V(SOLAR);
-    }
-
-    current_mA_raspi = ina3221.getCurrent_mA(RASPI);
-    current_mA_solar = ina3221.getCurrent_mA(SOLAR);
-
-    Serial.print(Transistor_State);
-    Serial.print(",");
-    Serial.print(Reason_Switch_Off);
-    Serial.print(",");
-    Serial.print(busvoltage);
-    Serial.print(",");
-    Serial.print(current_mA_raspi);
-    Serial.print(",");
-    Serial.print(current_mA_solar);
-    Serial.print(",");
-    Serial.print(rtc.getEpoch());
-    Serial.print(",");
-    Serial.println(Epoch_Restart);
-
-    delay(100);
-
-    if (Serial.available() > 0)
-    {
-      
-      Epoch_Now = Serial.readStringUntil(',').toInt();
-      Epoch_Restart = Serial.readStringUntil(',').toInt() + Summer_Time; // reçoit un byte de pyhon et considéré comme String
-      rtc.setTime(Epoch_Now);
-      delay(5000);
-      Serial.println("Epoch received");
-      delay(60000);
-      // break;
-    }
-
-    if (busvoltage <= Minimal_Voltage_To_Switch_Off_Raspi)
-    {
-      Reason_Switch_Off = 1;
-      break;
-    }
-
-    if (rtc.getEpoch() <= Epoch_Restart)
-    {
-      Reason_Switch_Off = 2;
-      // delay(10000);
-      break;
-    }
-
-    //Serial.flush();
-    gpio_hold_en(GPIO_NUM_27);
-    esp_light_sleep_start();
-    gpio_hold_dis(GPIO_NUM_27);
   }
-  //Serial.flush();
-  digitalWrite(TRANSISTOR, LOW);
-  Transistor_State = 0;
-  gpio_hold_en(GPIO_NUM_27);
-  esp_light_sleep_start();
-  gpio_hold_dis(GPIO_NUM_27);
+gpio_hold_en(GPIO_NUM_27);
+esp_light_sleep_start();
+gpio_hold_dis(GPIO_NUM_27);
 }
 
 
 
+// #include <Arduino.h>
+// #include <ESP32Time.h>
+// // #include <esp_sleep.h>
+// // #include <driver/uart.h>
 
+// long Epoch_Now = 0;
+// long Epoch_Restart = 0;
+// String Launch = "0";
+// //int32_t Launch = 0;
 
+// ESP32Time rtc(0);
 
+// void setup(void)
+// {
+//   //rtc.setTime(1653592210);
+//   rtc.setTime(10, 53, 23, 25, 5, 2022);
 
+//   // int wake_thresh = 3;
+//   // uart_set_wakeup_threshold(UART_NUM_0, wake_thresh);
+//   // esp_sleep_enable_uart_wakeup(UART_NUM_0);
+//   esp_sleep_enable_timer_wakeup(10 * 1000000);
+//   Serial.begin(9600);
+// }
 
+// void loop(void)
+// {
+//   //delay(100);
+//   //Serial.println("test");
+//   //Serial.println("test");
+//   //Serial.println(Serial.available());
+//   //Serial.println("test");
+//   Serial.print(rtc.getTime("%A, %B %d %Y %H:%M:%S"));
+//   Serial.print(',');
+//   Serial.print(rtc.getEpoch()); //  (long)    1609459200
+//   Serial.print(',');
+//   Serial.print(Epoch_Now);
+//   Serial.print(',');
+//   Serial.println(Epoch_Restart);
+//   delay(500);
 
+//   if (Serial.available() > 0)
+//   {
+//     //Serial.println("test_3");
+//     String First_String_Epoch = Serial.readStringUntil(','); 
+//     //Serial.read();
+//     String Second_String_Epoch = Serial.readStringUntil(',');// reçoit un byte de pyhon et considéré comme String
+//     // //Launch = Serial.parseInt();
+//     Epoch_Now = First_String_Epoch.toInt();
+//     Epoch_Restart = Second_String_Epoch.toInt();
+//     //Serial.println("test_1"); // transformé en entier
+//     //Serial.println(Launch);
 
+//     //Serial.println(First_String_Epoch);
+//     // //Serial.print(' , ');
+//     // Serial.println(Second_String_Epoch);
+//     // Serial.print(Epoch_Now);
+//     // Serial.print(',');
+//     // Serial.println(Epoch_Restart);
+//     //Serial.println(' Have been received');
 
+//     rtc.setTime(Epoch_Now);
+//      // 17th Jan 2021 15:24:30
+//     //Serial.println("I passed here1");
+//     //rtc.setTime(10, 53, 23, 25, 5, 2022);
+//     //Serial.println("I passed here2");
+//   }
+  
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+//   esp_light_sleep_start();
+// }
 
 // #include <Arduino.h>
 // #include <ESP32Time.h>
 
 // long Epoch_Now = 0;
 // long Epoch_Restart = 0;
+
 
 // ESP32Time rtc(0);
 
@@ -238,12 +143,235 @@ void loop(void)
 //   if (Serial.available() > 0)
 //   {
 
-//     Epoch_Now = Serial.readStringUntil(',').toInt();
-//     Epoch_Restart = Serial.readStringUntil(',').toInt(); // reçoit un byte de pyhon et considéré comme String
+//     // Epoch_Now = Serial.readStringUntil(',').toInt(); 
+//     // Epoch_Restart = Serial.readStringUntil(',').toInt();// reçoit un byte de pyhon et considéré comme String
+
+//     String First_String_Epoch = Serial.readStringUntil(','); 
+//     //Serial.read();
+//     String Second_String_Epoch = Serial.readStringUntil(',');// reçoit un byte de pyhon et considéré comme String
+//     // //Launch = Serial.parseInt();
+//     Epoch_Now = First_String_Epoch.toInt();
+//     Epoch_Restart = Second_String_Epoch.toInt();
+
+
 //     rtc.setTime(Epoch_Now);
+
 //   }
+  
+//   esp_light_sleep_start();
+// }
+
+
+
+
+
+
+// #include <Arduino.h>
+// #include <ESP32Time.h>
+// // #include <esp_sleep.h>
+// // #include <driver/uart.h>
+
+// long Epoch_Now = 0;
+// long Epoch_Restart = 0;
+// String Launch = "0";
+// //int32_t Launch = 0;
+
+// ESP32Time rtc(0);
+
+// void setup(void)
+// {
+//   //rtc.setTime(1653592210);
+//   rtc.setTime(10, 53, 23, 25, 5, 2022);
+
+//   // int wake_thresh = 3;
+//   // uart_set_wakeup_threshold(UART_NUM_0, wake_thresh);
+//   // esp_sleep_enable_uart_wakeup(UART_NUM_0);
+//   esp_sleep_enable_timer_wakeup(10 * 1000000);
+//   Serial.begin(9600);
+// }
+
+// void loop(void)
+// {
+//   //delay(100);
+//   //Serial.println("test");
+//   //Serial.println("test");
+//   //Serial.println(Serial.available());
+//   //Serial.println("test");
+//   Serial.print(rtc.getTime("%A, %B %d %Y %H:%M:%S"));
+//   Serial.print(',');
+//   Serial.print(rtc.getEpoch()); //  (long)    1609459200
+//   Serial.print(',');
+//   Serial.print(Epoch_Now);
+//   Serial.print(',');
+//   Serial.println(Epoch_Restart);
+//   delay(100);
+
+//   if (Serial.available() > 0)
+//   {
+//     //Serial.println("test_3");
+//     String First_String_Epoch = Serial.readStringUntil(','); 
+//     //Serial.read();
+//     String Second_String_Epoch = Serial.readStringUntil(',');// reçoit un byte de pyhon et considéré comme String
+//     // //Launch = Serial.parseInt();
+//     Epoch_Now = First_String_Epoch.toInt();
+//     Epoch_Restart = Second_String_Epoch.toInt();
+//     //Serial.println("test_1"); // transformé en entier
+//     //Serial.println(Launch);
+
+//     //Serial.println(First_String_Epoch);
+//     // //Serial.print(' , ');
+//     // Serial.println(Second_String_Epoch);
+//     // Serial.print(Epoch_Now);
+//     // Serial.print(',');
+//     // Serial.println(Epoch_Restart);
+//     //Serial.println(' Have been received');
+
+//     rtc.setTime(Epoch_Now);
+//      // 17th Jan 2021 15:24:30
+//     //Serial.println("I passed here1");
+//     //rtc.setTime(10, 53, 23, 25, 5, 2022);
+//     //Serial.println("I passed here2");
+//   }
+  
 
 //   esp_light_sleep_start();
+// }
+
+
+
+
+
+
+// #include <Arduino.h>
+// #include <ESP32Time.h>
+
+// uint8_t Integer_1 = 0;
+// uint8_t Integer_2 = 0;
+// // string Launch = "0";
+// int32_t Launch = 0;
+
+// ESP32Time rtc(0);
+
+// void setup(void)
+// {
+//   //rtc.setTime(1653592210);
+//   esp_sleep_enable_timer_wakeup(10 * 1000000);
+//   Serial.begin(9600);
+// }
+
+// void loop(void)
+// {
+//   //delay(100);
+//   //Serial.println("test");
+//   //Serial.println("test");
+//   //Serial.println(Serial.available());
+//   //Serial.println("test");
+//   if (Serial.available() > 0)
+//   {
+//     //Serial.println("test_3");
+//     //Launch = Serial.readString(); // reçoit un byte de pyhon et considéré comme String
+//     Launch = Serial.parseInt();
+//     //Integer_1 = Launch.toInt();
+//     //Serial.println("test_1"); // transformé en entier
+//     //Serial.println(Launch);
+//     //Serial.print(" Et ");
+//     //Serial.println(Integer_1);
+
+//     rtc.setTime(Launch);
+//      // 17th Jan 2021 15:24:30
+//     //Serial.println("I passed here1");
+//     //rtc.setTime(10, 53, 23, 25, 5, 2022);
+//     //Serial.println("I passed here2");
+//   }
+  
+//   Serial.println(rtc.getTime("%A, %B %d %Y %H:%M:%S"));
+//   //Serial.println(rtc.getEpoch()); //  (long)    1609459200
+//   delay(1000);
+//   //esp_light_sleep_start();
+// }
+
+
+
+
+
+
+
+
+//   if (Integer_1 == 1)
+//   {
+//     //Integer_2 = 1;
+//     Serial.println("I received 1");
+
+//   }
+//   else if (Integer_1 == 0)
+//   {
+//     //Integer_2 = 0;
+//     Serial.println("I received 0");
+//   }
+// }
+
+// #include <ESP32Time.h>
+
+// //ESP32Time rtc;
+// //ESP32Time rtc(3600);  // offset in seconds GMT+1
+// ESP32Time rtc(0); // offset in seconds GMT+1
+
+// void setup()
+// {
+//   Serial.begin(9600);
+//   rtc.setTime(10, 53, 23, 25, 5, 2022); // 17th Jan 2021 15:24:30
+
+//   esp_sleep_enable_timer_wakeup(30 * 1000000);
+//   //rtc.setTime(1609459200);  // 1st Jan 2021 00:00:00
+//   //rtc.offset = 7200; // change offset value
+
+//   /*---------set with NTP---------------*/
+//   //  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+//   //  struct tm timeinfo;
+//   //  if (getLocalTime(&timeinfo)){
+//   //    rtc.setTimeStruct(timeinfo);
+//   //  }
+// }
+
+// void loop()
+// {
+
+//   Serial.println(rtc.getTime("%A, %B %d %Y %H:%M:%S"));
+//   //  Serial.println(rtc.getTime());          //  (String) 15:24:38
+//   //  Serial.println(rtc.getDate());          //  (String) Sun, Jan 17 2021
+//   //  Serial.println(rtc.getDate(true));      //  (String) Sunday, January 17 2021
+//   //  Serial.println(rtc.getDateTime());      //  (String) Sun, Jan 17 2021 15:24:38
+//   //  Serial.println(rtc.getDateTime(true));  //  (String) Sunday, January 17 2021 15:24:38
+//   //  Serial.println(rtc.getTimeDate());      //  (String) 15:24:38 Sun, Jan 17 2021
+//   //  Serial.println(rtc.getTimeDate(true));  //  (String) 15:24:38 Sunday, January 17 2021
+//   //
+//   //  Serial.println(rtc.getMicros());        //  (long)    723546
+//   //  Serial.println(rtc.getMillis());        //  (long)    723
+//   Serial.println(rtc.getEpoch()); //  (long)    1609459200
+//                                   //  Serial.println(rtc.getSecond());        //  (int)     38    (0-59)
+//                                   //  Serial.println(rtc.getMinute());        //  (int)     24    (0-59)
+//                                   //  Serial.println(rtc.getHour());          //  (int)     3     (0-12)
+//                                   //  Serial.println(rtc.getHour(true));      //  (int)     15    (0-23)
+//                                   //  Serial.println(rtc.getAmPm());          //  (String)  pm
+//                                   //  Serial.println(rtc.getAmPm(true));      //  (String)  PM
+//                                   //  Serial.println(rtc.getDay());           //  (int)     17    (1-31)
+//                                   //  Serial.println(rtc.getDayofWeek());     //  (int)     0     (0-6)
+//                                   //  Serial.println(rtc.getDayofYear());     //  (int)     16    (0-365)
+//                                   //  Serial.println(rtc.getMonth());         //  (int)     0     (0-11)
+//                                   //  Serial.println(rtc.getYear());          //  (int)     2021
+
+//   Serial.println(rtc.getLocalEpoch()); //  (long)    1609459200 epoch without offset
+//       // (String) returns time with specified format
+//   // formating options  http://www.cplusplus.com/reference/ctime/strftime/
+
+//   struct tm timeinfo = rtc.getTimeStruct();
+//   Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S"); //  (tm struct) Sunday, January 17 2021 07:24:38
+
+//   delay(1000);
+//   esp_light_sleep_start();
+
+//   Serial.println(rtc.getTime("%A, %B %d %Y %H:%M:%S"));
+//   //delay(1000);
 // }
 
 // #include <Arduino.h>
