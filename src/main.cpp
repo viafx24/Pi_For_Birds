@@ -23,7 +23,7 @@ const int SOLAR = 3;
 
 const long Initial_Delay = 30000;
 
-const int ARRAYSIZE = 20;
+const int ARRAYSIZE = 2000;
 
 // all variables
 
@@ -139,7 +139,7 @@ void loop(void)
         // }; // wait until raspi send data
         while (Serial.readString() != "Raspi Ready sent")
         {
-          Serial.println(Data_transistor_Off[1]);// only to allow raspi to get the reboot parameter(>0)
+          Serial.println(Data_transistor_Off[1]); // only to allow raspi to get the reboot parameter(>0)
         };
         // String Receiving_Ready = Serial.readString();
         // delay(100);
@@ -191,13 +191,23 @@ void loop(void)
     if (Serial.available() > 0)
     {
 
-      Epoch_Now = Serial.readStringUntil(',').toInt();
-      Epoch_Restart = Serial.readStringUntil(',').toInt() + Summer_Time; // reçoit un byte de pyhon et considéré comme String
-      rtc.setTime(Epoch_Now);
-      delay(5000);
-      Serial.println("Epoch received");
-      delay(50000);
-      // break;
+      // String Test=Serial.readStringUntil(',');
+      // Serial.println(Test);
+      if (Serial.readStringUntil(',') == "Epoch Sent")
+      {
+        Epoch_Now = Serial.readStringUntil(',').toInt();
+        Epoch_Restart = Serial.readStringUntil(',').toInt() + Summer_Time; // reçoit un byte de pyhon et considéré comme String
+        rtc.setTime(Epoch_Now);
+        delay(5000);
+        Serial.println("Epoch received");
+        delay(50000);
+        //break;
+      }
+      else
+      {
+        Serial.println("corrrupted data");
+      }
+      
     }
 
     if (busvoltage <= Minimal_Voltage_To_Switch_Off_Raspi)
