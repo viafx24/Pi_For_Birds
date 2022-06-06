@@ -125,42 +125,41 @@ void loop(void)
       digitalWrite(TRANSISTOR, HIGH);
 
       Transistor_State = 1;
-      Serial.println("Delay of 60 seconds to switch on raspi");
-      delay(60000);
-      Serial.println("End of delay");
+
       delay(100);
 
       //Serial.flush(); // maybe useless
-    }
-    if ((it1 == 1) && (Reason_Switch_Off > 0))
-    {
-      //it1++;
-      // Serial.flush();
-      // while (Serial.available() == 0)
-      // {
-      // }; // wait until raspi send data
-      while (Serial.readString() != "Raspi Ready sent")
-      {
-      };
-      // String Receiving_Ready = Serial.readString();
-      // delay(100);
-      // Serial.println(Receiving_Ready);
-      delay(100);
 
-      // if (Receiving_Ready == "Raspi Ready sent")
-      // {
-      Serial.println("ESP32 Ready received");
-      delay(100);
-      for (int i = 0; i < it0; i++)
+      if (Reason_Switch_Off > 0)
       {
-        Serial.println(Data_transistor_Off[i]);
+        //it1++;
+        // Serial.flush();
+        // while (Serial.available() == 0)
+        // {
+        // }; // wait until raspi send data
+        while (Serial.readString() != "Raspi Ready sent")
+        {
+          Serial.println(Data_transistor_Off[1]);// only to allow raspi to get the reboot parameter(>0)
+        };
+        // String Receiving_Ready = Serial.readString();
+        // delay(100);
+        // Serial.println(Receiving_Ready);
+        delay(100);
+
+        // if (Receiving_Ready == "Raspi Ready sent")
+        // {
+        Serial.println("ESP32 Ready received");
+        delay(100);
+        for (int i = 0; i < it0; i++)
+        {
+          Serial.println(Data_transistor_Off[i]);
+        }
+        delay(100); // critical
+        Serial.println("End of transmission");
+        delay(100); // critical
+        it0 = 0;    // to avoid overflow
+        // }
       }
-      delay(100); // critical
-      Serial.println("End of transmission");
-      delay(100); // critical
-      it0 = 0;    // to avoid overflow
-      // }
-
     } // wait for raspi send data
 
     busvoltage = ina3221.getBusVoltage_V(SOLAR);
