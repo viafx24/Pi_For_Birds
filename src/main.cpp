@@ -13,7 +13,7 @@ const int I2C_SDA = 33;
 const int I2C_SCL = 32;
 
 const long uS_TO_S_FACTOR = 1000000; /* Conversion factor for micro seconds to seconds */
-const int TIME_TO_SLEEP = 1 * 5;     /* Time ESP32 will go to sleep (in seconds) */
+const int TIME_TO_SLEEP = 1 * 60;    /* Time ESP32 will go to sleep (in seconds) */
 
 const int TRANSISTOR = 27; // for NPN (to switch on the base)
 const int INAVCC = 26;
@@ -27,8 +27,8 @@ const int ARRAYSIZE = 2000;
 
 // all variables
 
-float Minimal_Voltage_To_Switch_On_Raspi = 13.5;  // volt
-float Minimal_Voltage_To_Switch_Off_Raspi = 12.5; //volt
+float Minimal_Voltage_To_Switch_On_Raspi = 15.5;  // volt
+float Minimal_Voltage_To_Switch_Off_Raspi = 14.5; //volt
 
 float busvoltage = 0;
 float current_mA_solar = 0;
@@ -40,7 +40,7 @@ long Epoch_Restart = 1600000000;
 int Reason_Switch_Off = 0;
 int Transistor_State = 0;
 
-int Summer_Time = 7200;
+int Summer_Time = 0; //7200
 
 unsigned long it0 = 0; // iteration to save date during "zero transistor state"
 unsigned long it1 = 0;
@@ -94,140 +94,135 @@ void loop(void)
   // we save data during Transistor OFF only after receiving epoch
   // and only if iteration is inferior to arraysize to avoid overflow
 
+  Data_transistor_Off[it0] = String(Transistor_State);
+  Data_transistor_Off[it0].concat(",");
+  Data_transistor_Off[it0].concat(Reason_Switch_Off);
+  Data_transistor_Off[it0].concat(",");
+  Data_transistor_Off[it0].concat(busvoltage);
+  Data_transistor_Off[it0].concat(",");
+  Data_transistor_Off[it0].concat(current_mA_raspi);
+  Data_transistor_Off[it0].concat(",");
+  Data_transistor_Off[it0].concat(current_mA_solar);
+  Data_transistor_Off[it0].concat(",");
+  Data_transistor_Off[it0].concat(rtc.getEpoch());
+  Data_transistor_Off[it0].concat(",");
+  Data_transistor_Off[it0].concat(Epoch_Restart);
+
+  Serial.println(Data_transistor_Off[it0]); //always print [0] if beginning
+  delay(100);
+
   if ((Reason_Switch_Off > 0) && (it0 < ARRAYSIZE))
   {
-
-    Data_transistor_Off[it0] = String(Transistor_State);
-    Data_transistor_Off[it0].concat(",");
-    Data_transistor_Off[it0].concat(Reason_Switch_Off);
-    Data_transistor_Off[it0].concat(",");
-    Data_transistor_Off[it0].concat(busvoltage);
-    Data_transistor_Off[it0].concat(",");
-    Data_transistor_Off[it0].concat(current_mA_raspi);
-    Data_transistor_Off[it0].concat(",");
-    Data_transistor_Off[it0].concat(current_mA_solar);
-    Data_transistor_Off[it0].concat(",");
-    Data_transistor_Off[it0].concat(rtc.getEpoch());
-    Data_transistor_Off[it0].concat(",");
-    Data_transistor_Off[it0].concat(Epoch_Restart);
-
-    Serial.println(Data_transistor_Off[it0]);
-    delay(100);
+    it0++; // the way to keep track of Data
   }
 
-  it0++;
   it1 = 0;
 
-  while ((busvoltage > Minimal_Voltage_To_Switch_On_Raspi) && (rtc.getEpoch() > Epoch_Restart)) // last condition to check daylight
+  if (busvoltage > Minimal_Voltage_To_Switch_On_Raspi) // to get hysteresis
   {
-    if (it1 == 0)
-    {
-      digitalWrite(TRANSISTOR, HIGH);
 
-      Transistor_State = 1;
+    while ((busvoltage > Minimal_Voltage_To_Switch_Off_Raspi) && (rtc.getEpoch() > Epoch_Restart)) // last condition to check daylight
+    {
+      if (it1 == 0)
+      {
+        digitalWrite(TRANSISTOR, HIGH);
+
+        Transistor_State = 1;
+
+        delay(100);
+
+        //Serial.flush(); // maybe useless
+
+        if (Reason_Switch_Off > 0)
+        {
+
+          while (Serial.readString() != "Raspi Ready sent")
+          {
+            Serial.println(Data_transistor_Off[1]); // only to allow raspi to get the reboot parameter(>0)
+          };
+
+          delay(100);
+
+          Serial.println("ESP32 Ready received");
+          delay(100);
+          for (int i = 0; i < it0; i++)
+          {
+            Serial.println(Data_transistor_Off[i]);
+          }
+          delay(100); // critical
+          Serial.println("End of transmission");
+          delay(100); // critical
+          it0 = 0;    // to avoid overflow
+        
+        }
+      } // wait for raspi send data
+
+      busvoltage = ina3221.getBusVoltage_V(SOLAR);
+
+      while ((busvoltage < 12.0) || (busvoltage > 17.0))
+      {
+        busvoltage = ina3221.getBusVoltage_V(SOLAR);
+      }
+
+      current_mA_raspi = ina3221.getCurrent_mA(RASPI);
+      current_mA_solar = ina3221.getCurrent_mA(SOLAR);
+
+      Serial.print(Transistor_State);
+      Serial.print(",");
+      Serial.print(Reason_Switch_Off);
+      Serial.print(",");
+      Serial.print(busvoltage);
+      Serial.print(",");
+      Serial.print(current_mA_raspi);
+      Serial.print(",");
+      Serial.print(current_mA_solar);
+      Serial.print(",");
+      Serial.print(rtc.getEpoch());
+      Serial.print(",");
+      Serial.println(Epoch_Restart);
 
       delay(100);
 
-      //Serial.flush(); // maybe useless
-
-      if (Reason_Switch_Off > 0)
+      if (Serial.available() > 0)
       {
-        //it1++;
-        // Serial.flush();
-        // while (Serial.available() == 0)
-        // {
-        // }; // wait until raspi send data
-        while (Serial.readString() != "Raspi Ready sent")
-        {
-          Serial.println(Data_transistor_Off[1]); // only to allow raspi to get the reboot parameter(>0)
-        };
-        // String Receiving_Ready = Serial.readString();
-        // delay(100);
-        // Serial.println(Receiving_Ready);
-        delay(100);
 
-        // if (Receiving_Ready == "Raspi Ready sent")
-        // {
-        Serial.println("ESP32 Ready received");
-        delay(100);
-        for (int i = 0; i < it0; i++)
+        // String Test=Serial.readStringUntil(',');
+        // Serial.println(Test);
+        if (Serial.readStringUntil(',') == "Epoch Sent")
         {
-          Serial.println(Data_transistor_Off[i]);
+          Epoch_Now = Serial.readStringUntil(',').toInt();
+          Epoch_Restart = Serial.readStringUntil(',').toInt(); // + Summer_Time; // reçoit un byte de pyhon et considéré comme String
+          rtc.setTime(Epoch_Now);
+          delay(5000);
+          Serial.println("Epoch received");
+          delay(50000);
+          //break;
         }
-        delay(100); // critical
-        Serial.println("End of transmission");
-        delay(100); // critical
-        it0 = 0;    // to avoid overflow
-        // }
+        else
+        {
+          Serial.println("corrrupted data");
+        }
       }
-    } // wait for raspi send data
 
-    busvoltage = ina3221.getBusVoltage_V(SOLAR);
-
-    while ((busvoltage < 12.0) || (busvoltage > 17.0))
-    {
-      busvoltage = ina3221.getBusVoltage_V(SOLAR);
-    }
-
-    current_mA_raspi = ina3221.getCurrent_mA(RASPI);
-    current_mA_solar = ina3221.getCurrent_mA(SOLAR);
-
-    Serial.print(Transistor_State);
-    Serial.print(",");
-    Serial.print(Reason_Switch_Off);
-    Serial.print(",");
-    Serial.print(busvoltage);
-    Serial.print(",");
-    Serial.print(current_mA_raspi);
-    Serial.print(",");
-    Serial.print(current_mA_solar);
-    Serial.print(",");
-    Serial.print(rtc.getEpoch());
-    Serial.print(",");
-    Serial.println(Epoch_Restart);
-
-    delay(100);
-
-    if (Serial.available() > 0)
-    {
-
-      // String Test=Serial.readStringUntil(',');
-      // Serial.println(Test);
-      if (Serial.readStringUntil(',') == "Epoch Sent")
+      if (busvoltage <= Minimal_Voltage_To_Switch_Off_Raspi)
       {
-        Epoch_Now = Serial.readStringUntil(',').toInt();
-        Epoch_Restart = Serial.readStringUntil(',').toInt() + Summer_Time; // reçoit un byte de pyhon et considéré comme String
-        rtc.setTime(Epoch_Now);
-        delay(5000);
-        Serial.println("Epoch received");
-        delay(50000);
-        //break;
+        Reason_Switch_Off = 1;
+        break;
       }
-      else
+
+      if (rtc.getEpoch() <= Epoch_Restart)
       {
-        Serial.println("corrrupted data");
+        Reason_Switch_Off = 2;
+        // delay(10000);
+        break;
       }
-      
-    }
 
-    if (busvoltage <= Minimal_Voltage_To_Switch_Off_Raspi)
-    {
-      Reason_Switch_Off = 1;
-      break;
+      //Serial.flush();
+      it1++;
+      gpio_hold_en(GPIO_NUM_27);
+      esp_light_sleep_start();
+      gpio_hold_dis(GPIO_NUM_27);
     }
-
-    if (rtc.getEpoch() <= Epoch_Restart)
-    {
-      Reason_Switch_Off = 2;
-      // delay(10000);
-      break;
-    }
-
-    //Serial.flush();
-    it1++;
-    gpio_hold_en(GPIO_NUM_27);
-    esp_light_sleep_start();
-    gpio_hold_dis(GPIO_NUM_27);
   }
   //Serial.flush();
   digitalWrite(TRANSISTOR, LOW);
