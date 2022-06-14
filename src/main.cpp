@@ -116,10 +116,12 @@ void loop(void)
     it0++; // the way to keep track of Data
   }
 
-  it1 = 0;
+ 
 
   if (busvoltage > Minimal_Voltage_To_Switch_On_Raspi) // to get hysteresis
   {
+
+     it1 = 0;
 
     while ((busvoltage > Minimal_Voltage_To_Switch_Off_Raspi) && (rtc.getEpoch() > Epoch_Restart)) // last condition to check daylight
     {
@@ -204,9 +206,10 @@ void loop(void)
         }
       }
 
-      if (busvoltage <= Minimal_Voltage_To_Switch_Off_Raspi)
+      if (busvoltage < Minimal_Voltage_To_Switch_Off_Raspi)
       {
         Reason_Switch_Off = 1;
+        delay(50000);
         break;
       }
 
