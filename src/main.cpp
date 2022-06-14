@@ -121,7 +121,9 @@ void loop(void)
   if (busvoltage > Minimal_Voltage_To_Switch_On_Raspi) // to get hysteresis
   {
 
-     it1 = 0;
+    it1 = 0;
+    Serial.println("I'm just after the if"); //always print [0] if beginning
+    delay(100);
 
     while ((busvoltage > Minimal_Voltage_To_Switch_Off_Raspi) && (rtc.getEpoch() > Epoch_Restart)) // last condition to check daylight
     {
@@ -137,6 +139,9 @@ void loop(void)
 
         if (Reason_Switch_Off > 0)
         {
+
+          Serial.println("I'm just after the second if"); //always print [0] if beginning
+          delay(100);
 
           while (Serial.readString() != "Raspi Ready sent")
           {
@@ -187,7 +192,8 @@ void loop(void)
 
       if (Serial.available() > 0)
       {
-
+          Serial.println("I'm just after the third if"); //always print [0] if beginning
+          delay(100);
         // String Test=Serial.readStringUntil(',');
         // Serial.println(Test);
         if (Serial.readStringUntil(',') == "Epoch Sent")
@@ -226,6 +232,11 @@ void loop(void)
       esp_light_sleep_start();
       gpio_hold_dis(GPIO_NUM_27);
     }
+  }
+  else
+  {
+    Serial.println("I'm in the else at the end"); //always print [0] if beginning
+    delay(100);
   }
   //Serial.flush();
   digitalWrite(TRANSISTOR, LOW);
