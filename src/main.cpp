@@ -13,7 +13,7 @@ const int I2C_SDA = 33;
 const int I2C_SCL = 32;
 
 const long uS_TO_S_FACTOR = 1000000; /* Conversion factor for micro seconds to seconds */
-const int TIME_TO_SLEEP = 1 * 60;    /* Time ESP32 will go to sleep (in seconds) */
+const int TIME_TO_SLEEP = 1 * 5;    /* Time ESP32 will go to sleep (in seconds) */
 
 const int TRANSISTOR = 27; // for NPN (to switch on the base)
 const int INAVCC = 26;
@@ -27,7 +27,8 @@ const int ARRAYSIZE = 2000;
 
 // all variables
 
-float Minimal_Voltage_To_Switch_On_Raspi = 15.5;  // volt
+float Minimal_Voltage_To_Switch_On_Raspi = 15;
+float Initial_Voltage_To_Switch_On_Raspi = 15;  // volt
 float Minimal_Voltage_To_Switch_Off_Raspi = 14.5; //volt
 
 float busvoltage = 0;
@@ -44,6 +45,7 @@ int Summer_Time = 0; //7200
 
 unsigned long it0 = 0; // iteration to save date during "zero transistor state"
 unsigned long it1 = 0;
+unsigned long it2 = 0;
 
 // All objects
 
@@ -116,11 +118,20 @@ void loop(void)
     it0++; // the way to keep track of Data
   }
 
- 
+  if ((busvoltage <= Minimal_Voltage_To_Switch_On_Raspi) && (it2 == 0))
+
+  {
+    Minimal_Voltage_To_Switch_On_Raspi=Minimal_Voltage_To_Switch_On_Raspi + 0.1;
+    Serial.print("New Minimal Voltage to switch on: ");
+    Serial.println(Minimal_Voltage_To_Switch_On_Raspi);
+    it2=1;
+    // to add hysteresis
+  }
 
   if (busvoltage > Minimal_Voltage_To_Switch_On_Raspi) // to get hysteresis
   {
-
+    Minimal_Voltage_To_Switch_On_Raspi = Initial_Voltage_To_Switch_On_Raspi;
+    it2=0;
     it1 = 0;
     Serial.println("I'm just after the if"); //always print [0] if beginning
     delay(100);
@@ -192,8 +203,8 @@ void loop(void)
 
       if (Serial.available() > 0)
       {
-          Serial.println("I'm just after the third if"); //always print [0] if beginning
-          delay(100);
+          // Serial.println("I'm just after the third if"); //always print [0] if beginning
+          // delay(100);
         // String Test=Serial.readStringUntil(',');
         // Serial.println(Test);
         if (Serial.readStringUntil(',') == "Epoch Sent")
