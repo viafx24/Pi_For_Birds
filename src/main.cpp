@@ -13,7 +13,7 @@ const int I2C_SDA = 33;
 const int I2C_SCL = 32;
 
 const long uS_TO_S_FACTOR = 1000000; /* Conversion factor for micro seconds to seconds */
-const int TIME_TO_SLEEP = 1 * 5;    /* Time ESP32 will go to sleep (in seconds) */
+const int TIME_TO_SLEEP = 1 * 60;    /* Time ESP32 will go to sleep (in seconds) */
 
 const int TRANSISTOR = 27; // for NPN (to switch on the base)
 const int INAVCC = 26;
