@@ -23,7 +23,7 @@ const int SOLAR = 3;
 
 const long Initial_Delay = 30000;
 
-const int ARRAYSIZE = 2000;
+const int ARRAYSIZE = 4000;
 
 // all variables
 
@@ -215,7 +215,9 @@ void loop(void)
           delay(5000);
           Serial.println("Epoch received");
           delay(50000);
-          //break;
+          Reason_Switch_Off = 2;
+          break;
+
         }
         else
         {
@@ -230,12 +232,10 @@ void loop(void)
         break;
       }
 
-      if (rtc.getEpoch() <= Epoch_Restart)
-      {
-        Reason_Switch_Off = 2;
-        // delay(10000);
-        break;
-      }
+      // if (rtc.getEpoch() <= Epoch_Restart)
+      // {
+
+      // }
 
       //Serial.flush();
       it1++;
