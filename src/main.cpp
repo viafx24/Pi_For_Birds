@@ -29,7 +29,7 @@ const int ARRAYSIZE = 4000;
 
 float Minimal_Voltage_To_Switch_On_Raspi = 15;
 float Initial_Voltage_To_Switch_On_Raspi = 15;  // volt
-float Minimal_Voltage_To_Switch_Off_Raspi = 14.5; //volt
+float Minimal_Voltage_To_Switch_Off_Raspi = 14; //volt
 
 float busvoltage = 0;
 float current_mA_solar = 0;
@@ -207,7 +207,9 @@ void loop(void)
           // delay(100);
         // String Test=Serial.readStringUntil(',');
         // Serial.println(Test);
-        if (Serial.readStringUntil(',') == "Epoch Sent")
+        String String_Sent=Serial.readStringUntil(',');
+
+        if (String_Sent == "Epoch Sent")
         {
           Epoch_Now = Serial.readStringUntil(',').toInt();
           Epoch_Restart = Serial.readStringUntil(',').toInt(); // + Summer_Time; // reçoit un byte de pyhon et considéré comme String
@@ -219,9 +221,20 @@ void loop(void)
           break;
 
         }
+        else if (String_Sent == "Break Sent")
+        {
+          delay(5000);
+          Serial.println("Break received");
+          delay(50000);
+          Reason_Switch_Off = 1;
+          break;
+        }
+
         else
         {
-          Serial.println("corrrupted data");
+          
+          Serial.println(String_Sent);
+          Serial.println("corrupted data");        
         }
       }
 
