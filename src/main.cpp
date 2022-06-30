@@ -13,7 +13,7 @@ const int I2C_SDA = 33;
 const int I2C_SCL = 32;
 
 const long uS_TO_S_FACTOR = 1000000; /* Conversion factor for micro seconds to seconds */
-const int TIME_TO_SLEEP = 1 * 60;    /* Time ESP32 will go to sleep (in seconds) */
+const int TIME_TO_SLEEP = 1 * 10;    /* Time ESP32 will go to sleep (in seconds) */
 
 const int TRANSISTOR = 27; // for NPN (to switch on the base)
 const int INAVCC = 26;
@@ -133,8 +133,6 @@ void loop(void)
     Minimal_Voltage_To_Switch_On_Raspi = Initial_Voltage_To_Switch_On_Raspi;
     it2=0;
     it1 = 0;
-    Serial.println("I'm just after the if"); //always print [0] if beginning
-    delay(100);
 
     while ((busvoltage > Minimal_Voltage_To_Switch_Off_Raspi) && (rtc.getEpoch() > Epoch_Restart)) // last condition to check daylight
     {
@@ -150,15 +148,12 @@ void loop(void)
 
         if (Reason_Switch_Off > 0)
         {
-
-          Serial.println("I'm just after the second if"); //always print [0] if beginning
-          delay(100);
-
+          digitalWrite(INAVCC, LOW); // switch on Ina3221
           while (Serial.readString() != "Raspi Ready sent")
           {
             Serial.println(Data_transistor_Off[1]); // only to allow raspi to get the reboot parameter(>0)
           };
-
+          digitalWrite(INAVCC, HIGH); // switch on Ina3221
           delay(100);
 
           Serial.println("ESP32 Ready received");
@@ -232,9 +227,9 @@ void loop(void)
 
         else
         {
-          
+          Serial.print("Corrupted data: "); 
           Serial.println(String_Sent);
-          Serial.println("corrupted data");        
+          delay(100);        
         }
       }
 
@@ -257,11 +252,7 @@ void loop(void)
       gpio_hold_dis(GPIO_NUM_27);
     }
   }
-  else
-  {
-    Serial.println("I'm in the else at the end"); //always print [0] if beginning
-    delay(100);
-  }
+
   //Serial.flush();
   digitalWrite(TRANSISTOR, LOW);
   Transistor_State = 0;
