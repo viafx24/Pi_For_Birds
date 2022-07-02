@@ -194,14 +194,10 @@ void loop(void)
       Serial.print(",");
       Serial.println(Epoch_Restart);
 
-      delay(100);
+      delay(1000);// 100 ms was not enough; maybe 250 neither. 1000 should be ok.
 
       if (Serial.available() > 0)
       {
-          // Serial.println("I'm just after the third if"); //always print [0] if beginning
-          // delay(100);
-        // String Test=Serial.readStringUntil(',');
-        // Serial.println(Test);
         String String_Sent=Serial.readStringUntil(',');
 
         if (String_Sent == "Epoch Sent")
@@ -209,8 +205,17 @@ void loop(void)
           Epoch_Now = Serial.readStringUntil(',').toInt();
           Epoch_Restart = Serial.readStringUntil(',').toInt(); // + Summer_Time; // reçoit un byte de pyhon et considéré comme String
           rtc.setTime(Epoch_Now);
-          delay(5000);
+          // delay(5000);
+          // delay(250);
           Serial.println("Epoch received");
+          delay(100);
+          while (Serial.readString() != "Double check OK")
+          {
+            Serial.println("Waiting dor double check");
+            delay(100);
+            
+          }
+          Serial.println("Double check received: switch off pi in 50 secs.");
           delay(50000);
           Reason_Switch_Off = 2;
           break;
@@ -218,8 +223,17 @@ void loop(void)
         }
         else if (String_Sent == "Break Sent")
         {
-          delay(5000);
+          //delay(5000);
           Serial.println("Break received");
+          delay(100);
+          while (Serial.readString() != "Double check OK")
+          {
+            Serial.println("Waiting dor double check");
+            delay(100);
+            
+          }
+          Serial.println("Double check received: switch off pi in 50 secs.");
+          delay(100);
           delay(50000);
           Reason_Switch_Off = 1;
           break;
