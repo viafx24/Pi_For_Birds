@@ -13,7 +13,8 @@ const int I2C_SDA = 33;
 const int I2C_SCL = 32;
 
 const long uS_TO_S_FACTOR = 1000000; /* Conversion factor for micro seconds to seconds */
-const int TIME_TO_SLEEP = 1 * 10;    /* Time ESP32 will go to sleep (in seconds) */
+const int TIME_TO_SLEEP_DAY = 1 * 10;    /* Time ESP32 will go to sleep (in seconds) */
+const int TIME_TO_SLEEP_NIGHT = 1 * 300;
 
 const int TRANSISTOR = 27; // for NPN (to switch on the base)
 const int INAVCC = 26;
@@ -23,7 +24,7 @@ const int SOLAR = 3;
 
 const long Initial_Delay = 30000;
 
-const int ARRAYSIZE = 4000;
+const int ARRAYSIZE = 3100;
 
 // all variables
 
@@ -58,7 +59,7 @@ void setup(void)
 
   rtc.setTime(Epoch_Now);
 
-  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP_DAY * uS_TO_S_FACTOR);
 
   pinMode(TRANSISTOR, OUTPUT); // for NPN
   digitalWrite(TRANSISTOR, LOW);
@@ -262,6 +263,7 @@ void loop(void)
       //Serial.flush();
       it1++;
       gpio_hold_en(GPIO_NUM_27);
+      esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP_DAY * uS_TO_S_FACTOR);
       esp_light_sleep_start();
       gpio_hold_dis(GPIO_NUM_27);
     }
@@ -271,6 +273,10 @@ void loop(void)
   digitalWrite(TRANSISTOR, LOW);
   Transistor_State = 0;
   gpio_hold_en(GPIO_NUM_27);
+  if (it0 > 5)
+  {
+    esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP_NIGHT * uS_TO_S_FACTOR);
+  }
   esp_light_sleep_start();
   gpio_hold_dis(GPIO_NUM_27);
 }
