@@ -148,7 +148,8 @@ void loop(void)
           digitalWrite(INAVCC, LOW); // switch on Ina3221
           while (Serial.readString() != "Raspi Ready sent")
           {
-            Serial.println(Data_transistor_Off[1]); // only to allow raspi to get the reboot parameter(>0)
+            //test with index at 0
+            Serial.println(Data_transistor_Off[0]); // only to allow raspi to get the reboot parameter(>0)
           };
           digitalWrite(INAVCC, HIGH); // switch on Ina3221
           delay(100);
@@ -202,8 +203,6 @@ void loop(void)
           Epoch_Now = Serial.readStringUntil(',').toInt();
           Epoch_Restart = Serial.readStringUntil(',').toInt(); // + Summer_Time; // reçoit un byte de pyhon et considéré comme String
           rtc.setTime(Epoch_Now);
-          // delay(5000);
-          // delay(250);
           Serial.println("Epoch received");
           delay(100);
           while (Serial.readString() != "Double check OK")
@@ -216,26 +215,7 @@ void loop(void)
           delay(50000);
           Reason_Switch_Off = 2;
           break;
-
         }
-        else if (String_Sent == "Break Sent")
-        {
-          //delay(5000);
-          Serial.println("Break received");
-          delay(100);
-          while (Serial.readString() != "Double check OK")
-          {
-            Serial.println("Waiting dor double check");
-            delay(100);
-            
-          }
-          Serial.println("Double check received: switch off pi in 50 secs.");
-          delay(100);
-          delay(50000);
-          Reason_Switch_Off = 1;
-          break;
-        }
-
         else
         {
           Serial.print("Corrupted data: "); 
