@@ -1,3 +1,4 @@
+
 #include <Arduino.h>
 #include <WiFi.h>
 #include "ThingSpeak.h"
@@ -12,6 +13,9 @@ unsigned long myChannelNumber = 2167680;
 const char *myWriteAPIKey = "77A69R0AA2ZR84XZ";
 
 // Variable
+
+const int I2C_SDA = 33;
+const int I2C_SCL = 32;
 
 const int TRANSISTOR = 27; // for NPN (to switch on the base)
 const int INAVCC = 26;
@@ -48,12 +52,17 @@ void setup()
 
   delay(10); // needed to get correct first value of INA3221
 
+  Wire.begin(I2C_SDA, I2C_SCL);
   ina3221.begin();
 }
 
 void loop()
 {
   // Connect or reconnect to WiFi
+
+  digitalWrite(INAVCC, HIGH); // switch on Ina3221
+  delay(10);
+
   if (WiFi.status() != WL_CONNECTED)
   {
     Serial.print("Attempting to connect");
@@ -64,11 +73,6 @@ void loop()
     }
     Serial.println("\nConnected.");
   }
-
-  // Get a new temperature reading
-
-  digitalWrite(INAVCC, HIGH); // switch on Ina3221
-  delay(10);
 
   busvoltage = ina3221.getBusVoltage_V(SOLAR);
   current_mA_raspi = ina3221.getCurrent_mA(RASPI);
@@ -105,7 +109,7 @@ void loop()
   WiFi.disconnect(true);
   WiFi.mode(WIFI_OFF);
 
-  digitalWrite(INAVCC, LOW);
+  //digitalWrite(INAVCC, LOW);
   delay(250);
   esp_light_sleep_start();
 }
