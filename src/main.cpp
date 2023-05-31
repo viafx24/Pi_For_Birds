@@ -11,6 +11,7 @@ WiFiClient client;
 
 unsigned long myChannelNumber = 2167680;
 const char *myWriteAPIKey = "77A69R0AA2ZR84XZ";
+const char *myReadAPIKey = "S9UHG56Q5ZJ334EF";
 
 // Variable
 
@@ -29,10 +30,12 @@ float busvoltage = 0;
 float current_mA_solar = 0;
 float current_mA_raspi = 0;
 
+bool Read_Write_State = 0;
+
 // sleep parameter
 
 const long uS_TO_S_FACTOR = 1000000;  /* Conversion factor for micro seconds to seconds */
-const int TIME_TO_SLEEP_DAY = 1 * 15; /* Time ESP32 will go to sleep (in seconds) */
+const int TIME_TO_SLEEP_DAY = 1 * 30; /* Time ESP32 will go to sleep (in seconds) */
 
 void setup()
 {
@@ -60,58 +63,109 @@ void loop()
 {
   // Connect or reconnect to WiFi
 
-  digitalWrite(INAVCC, HIGH); // switch on Ina3221
-  delay(10);
-
-  if (WiFi.status() != WL_CONNECTED)
+  if (Read_Write_State == 0)
   {
-    Serial.print("Attempting to connect");
-    while (WiFi.status() != WL_CONNECTED)
+
+    digitalWrite(INAVCC, HIGH); // switch on Ina3221
+    delay(10);
+
+    if (WiFi.status() != WL_CONNECTED)
     {
-      WiFi.begin(ssid, password);
-      delay(5000);
+      Serial.print("Attempting to connect to write");
+      while (WiFi.status() != WL_CONNECTED)
+      {
+        WiFi.begin(ssid, password);
+        delay(5000);
+      }
+      Serial.println("\nConnected.");
     }
-    Serial.println("\nConnected.");
+
+    busvoltage = ina3221.getBusVoltage_V(SOLAR);
+    current_mA_raspi = ina3221.getCurrent_mA(RASPI);
+    current_mA_solar = ina3221.getCurrent_mA(SOLAR);
+
+    Serial.print("Voltage : ");
+    Serial.println(busvoltage);
+
+    Serial.print("Current In: ");
+    Serial.println(current_mA_solar);
+
+    Serial.print("Current Out: ");
+    Serial.println(current_mA_raspi);
+
+    ThingSpeak.setField(1, busvoltage);
+    ThingSpeak.setField(2, current_mA_solar);
+    ThingSpeak.setField(3, current_mA_raspi);
+    // ThingSpeak.setField(4, Battery_Level);
+
+    // Write to ThingSpeak. There are up to 8 fields in a channel, allowing you to store up to 8 different
+    // pieces of information in a channel.  Here, we write to field 1.
+
+    int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+
+    if (x == 200)
+    {
+      Serial.println("Channel update successful.");
+    }
+    else
+    {
+      Serial.println("Problem updating channel. HTTP error code " + String(x));
+    }
+
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+
+    Read_Write_State = 1;
+    
+    delay(250);
+    esp_light_sleep_start();
   }
 
-  busvoltage = ina3221.getBusVoltage_V(SOLAR);
-  current_mA_raspi = ina3221.getCurrent_mA(RASPI);
-  current_mA_solar = ina3221.getCurrent_mA(SOLAR);
-
-  Serial.print("Voltage : ");
-  Serial.println(busvoltage);
-
-  Serial.print("Current In: ");
-  Serial.println(current_mA_solar);
-
-  Serial.print("Current Out: ");
-  Serial.println(current_mA_raspi);
-
-  ThingSpeak.setField(1, busvoltage);
-  ThingSpeak.setField(2, current_mA_solar);
-  ThingSpeak.setField(3, current_mA_raspi);
-  // ThingSpeak.setField(4, Battery_Level);
-
-  // Write to ThingSpeak. There are up to 8 fields in a channel, allowing you to store up to 8 different
-  // pieces of information in a channel.  Here, we write to field 1.
-
-  int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
-
-  if (x == 200)
-  {
-    Serial.println("Channel update successful.");
-  }
   else
+
   {
-    Serial.println("Problem updating channel. HTTP error code " + String(x));
+
+    if (WiFi.status() != WL_CONNECTED)
+    {
+      Serial.print("Attempting to connect to read");
+      while (WiFi.status() != WL_CONNECTED)
+      {
+        WiFi.begin(ssid, password);
+        delay(5000);
+      }
+      Serial.println("\nConnected.");
+    }
+
+    long y = ThingSpeak.readLongField(myChannelNumber, 4, myReadAPIKey);
+
+    // Check the status of the read operation to see if it was successful
+    int statusCode = 0;
+    statusCode = ThingSpeak.getLastReadStatus();
+
+    if (statusCode != 200)
+    {
+      Serial.println("Problem reading channel. HTTP error code " + String(statusCode));
+    }
+
+    if (y > 0)
+    {
+      digitalWrite(TRANSISTOR, HIGH);
+      gpio_hold_en(GPIO_NUM_27);
+      Serial.println("Switch Transistor ON ");
+    }
+    else
+    {
+      gpio_hold_dis(GPIO_NUM_27);
+      Serial.println("Switch Transistor OFF ");
+    }
+
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+
+    Read_Write_State = 0;
+    delay(250);
+    esp_light_sleep_start();
   }
-
-  WiFi.disconnect(true);
-  WiFi.mode(WIFI_OFF);
-
-  //digitalWrite(INAVCC, LOW);
-  delay(250);
-  esp_light_sleep_start();
 }
 
 // #include <Arduino.h>
