@@ -35,7 +35,7 @@ bool Read_Write_State = 0;
 // sleep parameter
 
 const long uS_TO_S_FACTOR = 1000000;  /* Conversion factor for micro seconds to seconds */
-const int TIME_TO_SLEEP_DAY = 1 * 30; /* Time ESP32 will go to sleep (in seconds) */
+const int TIME_TO_SLEEP_DAY = 1 * 60; /* Time ESP32 will go to sleep (in seconds) */
 
 void setup()
 {
@@ -47,8 +47,8 @@ void setup()
 
   ThingSpeak.begin(client); // Initialize ThingSpeak
 
-  pinMode(TRANSISTOR, OUTPUT); // for NPN
-  digitalWrite(TRANSISTOR, LOW);
+  pinMode(TRANSISTOR, OUTPUT);    // for NPN
+  digitalWrite(TRANSISTOR, LOW); // I decide to switch the transistor OFF from the beginning.
 
   pinMode(INAVCC, OUTPUT);    // Use as VCC for ina3221
   digitalWrite(INAVCC, HIGH); // switch on Ina3221
@@ -65,6 +65,8 @@ void loop()
 
   if (Read_Write_State == 0)
   {
+
+    
 
     digitalWrite(INAVCC, HIGH); // switch on Ina3221
     delay(10);
@@ -115,8 +117,8 @@ void loop()
     WiFi.disconnect(true);
     WiFi.mode(WIFI_OFF);
 
+    gpio_hold_en(GPIO_NUM_27);
     Read_Write_State = 1;
-    
     delay(250);
     esp_light_sleep_start();
   }
@@ -146,22 +148,28 @@ void loop()
     {
       Serial.println("Problem reading channel. HTTP error code " + String(statusCode));
     }
+    else // only change transistor state if the read succeed
+    {
+      if (y > 0)
+      {
+        gpio_hold_dis(GPIO_NUM_27);
+        digitalWrite(TRANSISTOR, HIGH);
 
-    if (y > 0)
-    {
-      digitalWrite(TRANSISTOR, HIGH);
-      gpio_hold_en(GPIO_NUM_27);
-      Serial.println("Switch Transistor ON ");
-    }
-    else
-    {
-      gpio_hold_dis(GPIO_NUM_27);
-      Serial.println("Switch Transistor OFF ");
+        Serial.println("Switch Transistor ON ");
+      }
+      else
+      {
+        gpio_hold_dis(GPIO_NUM_27);
+        digitalWrite(TRANSISTOR, LOW);
+
+        Serial.println("Switch Transistor OFF ");
+      }
     }
 
     WiFi.disconnect(true);
     WiFi.mode(WIFI_OFF);
 
+    gpio_hold_en(GPIO_NUM_27);
     Read_Write_State = 0;
     delay(250);
     esp_light_sleep_start();
